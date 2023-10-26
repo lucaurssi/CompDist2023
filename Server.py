@@ -36,5 +36,6 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             conn.sendall(data)
             
 
-    # the server stopped listenning here
-    # not sure if its because this is the end of the file
+# the server stopped listenning here
+# end of "with" statement
+
