@@ -19,13 +19,21 @@ def connection(s, conn, addr):# connected to client
     global in_lobby
     
     with conn: 
-            if in_lobby print(f"Connected by {addr}")
-            else break
+            if in_lobby: 
+                print(f"Connected by {addr}")
+            else: 
+                return
+            
+            nick = conn.recv(1024)
+            nick = nick.decode('ascii')
+            data = ("Hello there !")
+            conn.sendall(data.encode('utf-8'))
+            
             while True:
                 data = conn.recv(1024)
                 if not data:
                     break
-                print(f"Received: '{data.decode('ascii')}' from connected user: {addr}")
+                print(f"Received: '{data.decode('ascii')}' from user: {nick}")
                 
                 if in_lobby and data.decode('ascii') == "play" :
                     in_lobby = False
@@ -33,7 +41,7 @@ def connection(s, conn, addr):# connected to client
                         s2.connect((socket.gethostbyname(socket.gethostname()), PORT))
                         
                 conn.sendall(data)
-            print(f"Disconnected {addr}")
+            print(f"User {nick} Disconnected {addr}")
 
 
 def server():
@@ -46,7 +54,7 @@ def server():
             connections.append(Thread(target=connection, args=(s, conn, addr)))
             connections[-1].start()
         
-        print("Left lobby")
+        print("Game started")
         
         for i in connections:
             i.join()
@@ -55,8 +63,20 @@ def server():
 
 
 def client():
+    nick = input("Your nickname: ")
+    global HOST
+    HOST = input("Enter the server IP: ")  # The server's hostname or IP address
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.connect((HOST, PORT))
+        
+        try:
+            s.settimeout(1)
+            s.connect((HOST, PORT))
+            s.sendall(nick.encode('utf-8'))
+            data = s.recv(1024)
+        except:
+            print("Connection to server failed")
+            return
+        
         while(True):
             message = input("message to send: ")
             if(message == "exit"):
@@ -68,21 +88,24 @@ def client():
 
 
 
-
 clear()
 choice = input(" 1. Host a game \n 2. Join a game \n 3. Exit \n")
+clear()
 
 match choice:
     case '1':
+        print("<Server>\n")
         ip_address = socket.gethostbyname(socket.gethostname())
         print(f"Server IP Address: {ip_address}")
         server_thread = Thread(target=server)
         server_thread.start()
         
     case '2':
-        HOST = input("Enter the server IP: ")  # The server's hostname or IP address
+        print("<Client>\n")
         client_thread = Thread(target=client)
         client_thread.start()
+        
+        # insert game here
      
     case '3':
          print("Closing game.")
@@ -91,12 +114,6 @@ match choice:
         print("Invalid input, closing game.")
         exit(0)
 
-print("main thread created")
-
-
-
-
-
 
 match choice:
     case '1':
@@ -104,4 +121,4 @@ match choice:
     case '2':
         client_thread.join()
 
-print("main thread closed")
+print("End of program")
