@@ -6,26 +6,52 @@
 
 import socket
 from threading import Thread
+import os
+
+def clear(): os.system('cls' if os.name=='nt' else 'clear')
 
 HOST = "" # leave empty, allows connections from any IP
 PORT = 65432  # Port to listen on (non-privileged ports are > 1023)
+connections = []
+in_lobby = True
+
+def connection(s, conn, addr):# connected to client
+    global in_lobby
+    
+    with conn: 
+            if in_lobby print(f"Connected by {addr}")
+            else break
+            while True:
+                data = conn.recv(1024)
+                if not data:
+                    break
+                print(f"Received: '{data.decode('ascii')}' from connected user: {addr}")
+                
+                if in_lobby and data.decode('ascii') == "play" :
+                    in_lobby = False
+                    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s2:
+                        s2.connect((socket.gethostbyname(socket.gethostname()), PORT))
+                        
+                conn.sendall(data)
+            print(f"Disconnected {addr}")
 
 
 def server():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind((HOST, PORT))
-        s.listen() 
         
-        conn, addr = s.accept()
+        while in_lobby:
+            s.listen() 
+            conn, addr = s.accept()
+            connections.append(Thread(target=connection, args=(s, conn, addr)))
+            connections[-1].start()
         
-        with conn: # connected to client
-            print(f"Connected by {addr}")
-            while True:
-                data = conn.recv(1024)
-                print(f"Received {data!r}")
-                if not data:
-                    break
-                conn.sendall(data)
+        print("Left lobby")
+        
+        for i in connections:
+            i.join()
+        
+        print("All players disconnected")
 
 
 def client():
@@ -39,6 +65,11 @@ def client():
             
             data = s.recv(1024)
 
+
+
+
+
+clear()
 choice = input(" 1. Host a game \n 2. Join a game \n 3. Exit \n")
 
 match choice:
@@ -60,7 +91,7 @@ match choice:
         print("Invalid input, closing game.")
         exit(0)
 
-print("thread created")
+print("main thread created")
 
 
 
@@ -73,4 +104,4 @@ match choice:
     case '2':
         client_thread.join()
 
-print("thread closed")
+print("main thread closed")
