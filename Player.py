@@ -8,55 +8,54 @@ import socket
 from threading import Thread
 import os
 
+# clears the terminal screen
 def clear(): os.system('cls' if os.name=='nt' else 'clear')
 
 
-def connection(s, conn, addr):# connected to client
+def connection(s, conn, addr):# connection to client
     global in_lobby
     
-    with conn: 
-            if not in_lobby: 
-                return
+    with conn: # while inside this, mantain the connection with the client 
+        
+        # if a user try to connect after the lobby is closed
+        if not in_lobby: 
+            return
+        
+        # setting nickname for the user
+        nick = conn.recv(1024)
+        nick = nick.decode('ascii')
+        print(f"Connected by {addr} as {nick}")
+        
+        # confirmation
+        data = (f"Hello there {nick}!")
+        conn.sendall(data.encode('utf-8'))
+        
+        # main loop for the connection
+        while True:
+            data = conn.recv(1024) # waits for user input, TO DO: settimeout()
+            if not data:
+                break
+            
+            # logging messages in server
+            print(f"Received: '{data.decode('ascii')}' from user: {nick}")
+            
+            # checking for command 'play', TO DO: move this to master  
+            if in_lobby and data.decode('ascii') == "play" :
+                in_lobby = False
+                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s2:
+                    s2.connect((socket.gethostbyname(socket.gethostname()), PORT))
+                    
+            
+            # TO DO
+            # send message from here to master if necessary for the game
             
             
-            nick = conn.recv(1024)
-            nick = nick.decode('ascii')
-            print(f"Connected by {addr} as {nick}")
-            
-            data = ("Hello there !")
-            conn.sendall(data.encode('utf-8'))
-            
-            while True:
-                data = conn.recv(1024)
-                if not data:
-                    break
-                print(f"Received: '{data.decode('ascii')}' from user: {nick}")
-                
-                if in_lobby and data.decode('ascii') == "play" :
-                    in_lobby = False
-                    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s2:
-                        s2.connect((socket.gethostbyname(socket.gethostname()), PORT))
-                        
-                conn.sendall(data)
-            print(f"User {nick} Disconnected. {addr}")
+            conn.sendall(data) # confirmation that the message was received
+        
+        # here the connection has closed
+        print(f"User {nick} Disconnected. {addr}")
 
 
-def server():
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind((HOST, PORT))
-        
-        while in_lobby:
-            s.listen() 
-            conn, addr = s.accept()
-            connections.append(Thread(target=connection, args=(s, conn, addr)))
-            connections[-1].start()
-        
-        print("Game started")
-        
-        for i in connections:
-            i.join()
-        
-        print("All players disconnected")
 
 
 def client():
@@ -83,10 +82,10 @@ def client():
             data = s.recv(1024)
 
 
-
 HOST = "" # leave empty on server, allows connections from any IP
 PORT = 65432  # Port to listen on (non-privileged ports are > 1023)
-connections = []
+connections = [] # server side threads that mantain connection to clients
+
 in_lobby = True
 
 clear()
@@ -96,18 +95,43 @@ clear()
 match choice:
     case '1':
         print("<Server>\n")
-        ip_address = socket.gethostbyname(socket.gethostname())
-        print(f"Server IP Address: {ip_address}")
-        server_thread = Thread(target=server)
-        server_thread.start()
+        print(f"Server IP Address: {socket.gethostbyname(socket.gethostname())}")
         
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.bind((HOST, PORT))
+            
+            # this loop keep accepting new connections to users
+            while in_lobby:
+                s.listen() 
+                conn, addr = s.accept()
+                connections.append(Thread(target=connection, args=(s, conn, addr)))
+                connections[-1].start()
+            
+            # a player used the 'play' command a left the loop
+            print("Game started")
+            
+            
+            # TO DO: insert game's server side stuff here
+            
+            
+            # wait for all connections to end, TO DO: force end connections after certain time, timeout ?
+            for i in connections:
+                i.join()
+        
+        print("All players disconnected")
+    
     case '2':
         print("<Client>\n")
+        
         client_thread = Thread(target=client)
         client_thread.start()
         
-        # insert game here
-     
+        
+        # TO DO: insert game here
+        
+        
+        client_thread.join()
+    
     case '3':
          print("Closing game.")
          exit(0)
@@ -116,10 +140,6 @@ match choice:
         exit(0)
 
 
-match choice:
-    case '1':
-        server_thread.join()
-    case '2':
-        client_thread.join()
-
+# inportant print to check if any thread is loose,
+# the program wont end if it is, but it will show the print bellow
 print("End of program")
