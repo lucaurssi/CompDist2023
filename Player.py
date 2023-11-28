@@ -10,22 +10,19 @@ import os
 
 def clear(): os.system('cls' if os.name=='nt' else 'clear')
 
-HOST = "" # leave empty, allows connections from any IP
-PORT = 65432  # Port to listen on (non-privileged ports are > 1023)
-connections = []
-in_lobby = True
 
 def connection(s, conn, addr):# connected to client
     global in_lobby
     
     with conn: 
-            if in_lobby: 
-                print(f"Connected by {addr}")
-            else: 
+            if not in_lobby: 
                 return
+            
             
             nick = conn.recv(1024)
             nick = nick.decode('ascii')
+            print(f"Connected by {addr} as {nick}")
+            
             data = ("Hello there !")
             conn.sendall(data.encode('utf-8'))
             
@@ -41,7 +38,7 @@ def connection(s, conn, addr):# connected to client
                         s2.connect((socket.gethostbyname(socket.gethostname()), PORT))
                         
                 conn.sendall(data)
-            print(f"User {nick} Disconnected {addr}")
+            print(f"User {nick} Disconnected. {addr}")
 
 
 def server():
@@ -87,6 +84,10 @@ def client():
 
 
 
+HOST = "" # leave empty on server, allows connections from any IP
+PORT = 65432  # Port to listen on (non-privileged ports are > 1023)
+connections = []
+in_lobby = True
 
 clear()
 choice = input(" 1. Host a game \n 2. Join a game \n 3. Exit \n")
