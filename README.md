@@ -14,7 +14,8 @@ Instruções:
 - no caso do servidor não há mais ações possiveis atualmente
 
 - no cliente temos os seguintes commandos
-	- play : para sair do lobby e iniciar o "jogo"
-	- exit : para fechar a connexão com o servidor e o processo
+	- play  : para sair do lobby e iniciar o jogo.
+	- lobby : para sair do jogo e voltar ao lobby, onde outros jogadores podem entrar.
+	- exit  : para fechar a connexão com o servidor e o processo.
 
 - no cliente podemos tambem enviar mensagens para o servidor.

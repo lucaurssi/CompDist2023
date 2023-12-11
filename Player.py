@@ -4,6 +4,13 @@
 #
 # Jogo Distribuido
 
+# TO DO: 
+#   find out why the server is not closing
+#   open the lobby again (so someone who lost connection can connect back)
+#   cry
+#   ...
+#   profit
+
 import os
 import socket
 from threading import Thread, Lock
@@ -15,6 +22,7 @@ def clear(): os.system('cls' if os.name=='nt' else 'clear')
 
 def connection(s, conn, IP):# connection to client
     global in_lobby
+    global in_game
     global player_glossary
     global player_amount
     global lock
@@ -29,6 +37,7 @@ def connection(s, conn, IP):# connection to client
         
         # if a user try to connect after the lobby is closed
         if not in_lobby: 
+            player_amount -= 1
             return
         
         try:
@@ -38,7 +47,7 @@ def connection(s, conn, IP):# connection to client
             
             player = [nick, IP]
             if player in player_glossary:
-                print(f"Player {nick} reconnected. {IP}")
+                print(f"User {nick} reconnected. {IP}")
                 data = (f"Welcome back {nick}!")
              
             else: 
@@ -81,23 +90,33 @@ def connection(s, conn, IP):# connection to client
             
             # checking for command 'play'
             if in_lobby and data.decode('ascii') == "play" :
+                in_game = True
                 in_lobby = False
                 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s2: # breaks the master thread loop
                     s2.connect((socket.gethostbyname(socket.gethostname()), PORT))
                     
             
-            
+            if in_game and data.decode('ascii') == "lobby" :
+                in_lobby = True
+                in_game = False
             
         
         if conn in connected_players:
             connected_players.remove(conn)
         
         # here the connection has closed
-        print(f"User {nick} Disconnected. {IP}")
+        if nick:
+            print(f"User {nick} Disconnected. {IP}")
+        else:
+            print(f"Invalid name used on: {IP}")
+        
         player_amount -= 1
         
-        if in_lobby and player_amount < 1:
+        
+        # warn server to close, since there's no other player
+        if player_amount < 1:
             in_lobby = False
+            in_game = False
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s2:
                     s2.connect((socket.gethostbyname(socket.gethostname()), PORT))
 
@@ -119,7 +138,7 @@ def server_messager():
         message.pop(0)
         lock.release()
         
-        if message == "die, mailman":
+        if to_send == "die, mailman":
             break
         
         for i in connected_players:
@@ -148,6 +167,7 @@ def client():
             print("Connection to server failed")
             failed = True
             return
+        
         
         in_lobby = True # connected
         
@@ -191,6 +211,7 @@ connections = [] # server side threads that mantain connection to clients
 message = ""
 lock = Lock()
 
+in_game = False
 in_lobby = True
 failed = False
 
@@ -215,16 +236,28 @@ match choice:
             mailman = Thread(target=server_messager)
             mailman.start()
             
-            # this loop keep accepting new connections to users
-            while in_lobby:
-                s.listen() 
-                conn, addr = s.accept()
-                connections.append(Thread(target=connection, args=(s, conn, addr[0])))
-                connections[-1].start()
+            while in_lobby or in_game:
             
-            # a player used the 'play' command a left the loop
-            print("Game started")
-            
+                # this loop keep accepting new connections to users
+                while in_lobby:
+                    s.listen() 
+                    conn, addr = s.accept()
+                    connections.append(Thread(target=connection, args=(s, conn, addr[0])))
+                    connections[-1].start()
+                
+                # a player used the 'play' command a left the loop
+                
+                if player_amount > 0:
+                    print("Game started.")
+                
+                # this is where i would put my game, if i had one
+                while in_game:
+                    sleep(0.2)
+                
+                if player_amount > 0:
+                    print("Game ended, returning to lobby.")
+                
+                
             
             
             
