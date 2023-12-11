@@ -19,3 +19,6 @@ Instruções:
 	- exit  : para fechar a connexão com o servidor e o processo.
 
 - no cliente podemos tambem enviar mensagens para o servidor.
+
+Aviso: 
+	O programa não pode ser aberto no o git bash, pois a função de limpar a tela quebra a janela.
