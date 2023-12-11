@@ -29,7 +29,7 @@ def connection(s, conn, IP):# connection to client
     global connected_players
     failed = False # local
     
-    conn.settimeout(2)
+    conn.settimeout(10)
     player_amount += 1
     player = []
     
@@ -72,7 +72,7 @@ def connection(s, conn, IP):# connection to client
                 failed = True
                 continue
             
-            if data.decode('ascii') == "ping":
+            if "ping" in data.decode('ascii'):
                 continue
             
             if not data or data.decode('ascii') == "exit":
@@ -130,7 +130,7 @@ def server_messager():
         if not message:
             for i in connected_players:
                 i.sendall(("pong").encode('utf-8'))
-            sleep(0.2)
+            sleep(1)
             continue
         
         lock.acquire()
@@ -143,7 +143,7 @@ def server_messager():
         
         for i in connected_players:
             i.sendall(to_send.encode('utf-8'))
-        sleep(0.1)
+        
 
 
 def client():
@@ -156,7 +156,7 @@ def client():
     HOST = input("Enter the server IP: ")  # The server's hostname or IP address
     
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.settimeout(2)
+        s.settimeout(10)
         
         try: # try to connect
             s.connect((HOST, PORT))
@@ -180,7 +180,7 @@ def client():
                     print("Connection to server failed. Press 'Enter' to close.")
                     return
                 
-                if data.decode('ascii') != "pong" and not (f"{nick}: " in data.decode('ascii')):
+                if "pong" not in data.decode('ascii') and not (f"{nick}: " in data.decode('ascii')):
                     print(data.decode('ascii'))
                 
                 sleep(0.1)
@@ -200,33 +200,45 @@ def client():
                 return
 
 
+def get_ip():
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.settimeout(0)
+    try:
+        # doesn't even have to be reachable
+        s.connect(('10.254.254.254', 1))
+        IP = s.getsockname()[0]
+    except Exception:
+        IP = '127.0.0.1'
+    finally:
+        s.close()
+    return IP
+    
 
 
 
+if __name__ == "__main__" :
+    HOST = "" # leave empty on server, allows connections from any IP
+    PORT = 65432  # Port to listen on (non-privileged ports are > 1023)
+    connections = [] # server side threads that mantain connection to clients
+    message = ""
+    lock = Lock()
 
+    in_game = False
+    in_lobby = True
+    failed = False
 
-HOST = "" # leave empty on server, allows connections from any IP
-PORT = 65432  # Port to listen on (non-privileged ports are > 1023)
-connections = [] # server side threads that mantain connection to clients
-message = ""
-lock = Lock()
+    connected_players = []
+    player_glossary = []
+    player_amount = 0
 
-in_game = False
-in_lobby = True
-failed = False
+    clear()
+    choice = input(" 1. Host a game \n 2. Join a game \n 3. Exit \n")
+    clear()
 
-connected_players = []
-player_glossary = []
-player_amount = 0
-
-clear()
-choice = input(" 1. Host a game \n 2. Join a game \n 3. Exit \n")
-clear()
-
-match choice:
-    case '1':
+    if choice == '1':
         print("<Server>\n")
-        print(f"Server IP Address: {socket.gethostbyname(socket.gethostname())}")
+        print(f"Server IP Address: {get_ip()}")
+    
         
         message = []
         
@@ -240,7 +252,7 @@ match choice:
             
                 # this loop keep accepting new connections to users
                 while in_lobby:
-                    s.listen() 
+                    s.listen(1) 
                     conn, addr = s.accept()
                     connections.append(Thread(target=connection, args=(s, conn, addr[0])))
                     connections[-1].start()
@@ -270,7 +282,7 @@ match choice:
         
         print("All players disconnected")
     
-    case '2':
+    elif choice == '2':
         print("<Client>\n")
         
         client_thread = Thread(target=client)
@@ -296,14 +308,13 @@ match choice:
         
         client_thread.join()
     
-    case '3':
-         print("Closing game.")
-         exit(0)
-    case _:
+    elif choice == '3':
+        print("Closing game.")
+    else:
         print("Invalid input, closing game.")
-        exit(0)
+    
 
 
-# inportant print to check if any thread is loose,
-# the program wont end if it is, but it will show the print bellow
-print("End of program")
+    # inportant print to check if any thread is loose,
+    # the program wont end if it is, but it will show the print bellow
+    print("End of program")
